@@ -20,4 +20,4 @@ python attack_classification.py --dataset_path data/yelp --target_model bert
 --counter_fitting_cos_sim_path [path to cos_sim_counter_fitting.npy] --USE_cache_path ./
 ```
 
-The code will generate a file named vulnerable_words.txt to output the vulnerable(important) words after being sorted by the importance scores.
+The above code will generate a file named vulnerable_words.txt to output the vulnerable(important) words after being sorted by the importance scores.
