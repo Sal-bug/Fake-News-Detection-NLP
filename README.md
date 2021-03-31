@@ -4,6 +4,9 @@ The folder TextFooler-master is copied directly from https://github.com/jind11/T
 
 ## Run the comp_cos_sim_mat.py.
 
+```
+python comp_cos_sim_mat.py [path to counter-fitted-vectors.txt]
+```
 This will generate a file of .npy of around 17GB.
 
 ## Run the attack_classification.py:
