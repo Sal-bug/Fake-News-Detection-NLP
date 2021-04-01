@@ -75,7 +75,7 @@ class NLI_infer_BERT(nn.Module):
                  max_seq_length=128,
                  batch_size=32):
         super(NLI_infer_BERT, self).__init__()
-        self.model = BertForSequenceClassification.from_pretrained(pretrained_dir, num_labels=nclasses).cpu()
+        self.model = BertForSequenceClassification.from_pretrained(pretrained_dir, num_labels=nclasses).gpu()
 
         # construct dataset loader
         self.dataset = NLIDataset_BERT(pretrained_dir, max_seq_length=max_seq_length, batch_size=batch_size)
@@ -90,9 +90,9 @@ class NLI_infer_BERT(nn.Module):
         probs_all = []
         #         for input_ids, input_mask, segment_ids in tqdm(dataloader, desc="Evaluating"):
         for input_ids, input_mask, segment_ids in dataloader:
-            input_ids = input_ids.cpu()
-            input_mask = input_mask.cpu()
-            segment_ids = segment_ids.cpu()
+            input_ids = input_ids.gpu()
+            input_mask = input_mask.gpu()
+            segment_ids = segment_ids.gpu()
 
             with torch.no_grad():
                 logits = self.model(input_ids, segment_ids, input_mask)
@@ -223,7 +223,7 @@ def attack(text_ls, true_label, predictor, stop_words_set, word2idx, idx2word, c
         leave_1_probs_argmax = torch.argmax(leave_1_probs, dim=-1)          # Prediction label for leave_1_texts.
         import_scores = (orig_prob - leave_1_probs[:, orig_label] + (leave_1_probs_argmax != orig_label).float() * (
                     leave_1_probs.max(dim=-1)[0] - torch.index_select(orig_probs, 0,
-                                                                      leave_1_probs_argmax))).data.cpu().numpy()
+                                                                      leave_1_probs_argmax))).data.gpu().numpy()
 
         # get words to perturb ranked by importance score for word in words_perturb
         words_perturb = []
@@ -233,6 +233,14 @@ def attack(text_ls, true_label, predictor, stop_words_set, word2idx, idx2word, c
                     words_perturb.append((idx, text_ls[idx]))
             except:
                 print(idx, len(text_ls), import_scores.shape, text_ls, len(leave_1_texts))
+
+        # Output the vulnerable words.
+        f = open("vulnerable_words.txt", "w")
+
+        for line in words_perturb:
+            f.write(line + '\n')
+
+        f.close()
 
         # find synonyms
         words_perturb_idx = [word2idx[word] for idx, word in words_perturb if word in word2idx]
@@ -272,7 +280,7 @@ def attack(text_ls, true_label, predictor, stop_words_set, word2idx, idx2word, c
             num_queries += len(new_texts)
             if len(new_probs.shape) < 2:
                 new_probs = new_probs.unsqueeze(0)
-            new_probs_mask = (orig_label != torch.argmax(new_probs, dim=-1)).data.cpu().numpy()
+            new_probs_mask = (orig_label != torch.argmax(new_probs, dim=-1)).data.gpu().numpy()
             # prevent bad synonyms
             new_probs_mask *= (semantic_sims >= sim_score_threshold)
             # prevent incompatible pos
@@ -287,7 +295,7 @@ def attack(text_ls, true_label, predictor, stop_words_set, word2idx, idx2word, c
                 break
             else:
                 new_label_probs = new_probs[:, orig_label] + torch.from_numpy(
-                        (semantic_sims < sim_score_threshold) + (1 - pos_mask).astype(float)).float().cpu()
+                        (semantic_sims < sim_score_threshold) + (1 - pos_mask).astype(float)).float().gpu()
                 new_label_prob_min, new_label_prob_argmin = torch.min(new_label_probs, dim=-1)
                 if new_label_prob_min < orig_prob:
                     text_prime[idx] = synonyms[new_label_prob_argmin]
@@ -357,9 +365,9 @@ def random_attack(text_ls, true_label, predictor, perturb_ratio, stop_words_set,
             num_queries += len(new_texts)
             if len(new_probs.shape) < 2:
                 new_probs = new_probs.unsqueeze(0)
-            new_probs_mask = (orig_label != torch.argmax(new_probs, dim=-1)).data.cpu().numpy()
+            new_probs_mask = (orig_label != torch.argmax(new_probs, dim=-1)).data.gpu().numpy()
             # prevent bad synonyms
-            new_probs_mask *= (semantic_sims >= sim_score_threshold)
+            new_probs_mask *= (semantic_sims >= sim_score_threshold)`
             # prevent incompatible pos
             synonyms_pos_ls = [criteria.get_pos(new_text[max(idx - 4, 0):idx + 5])[min(4, idx)]
                                if len(new_text) > 10 else criteria.get_pos(new_text)[idx] for new_text in new_texts]
